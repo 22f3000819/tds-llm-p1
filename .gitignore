@@ -1,0 +1,7 @@
+*.txt
+*.md
+.env
+__pycache__/
+*.py[oc]
+datagen.py
+evaluate.py
