@@ -12,7 +12,10 @@
 #   "python-dotenv",
 #   "httpx",
 #   "markdown",
-#   "duckdb"
+#   "duckdb",
+#   "beautifulsoup4",
+#   "pillow",
+#   "faster-whisper",
 # ]
 # ///
 
@@ -41,42 +44,6 @@ app.add_middleware(
 
 app = FastAPI()
 load_dotenv()
-
-# @app.get('/ask')
-# def ask(prompt: str):
-#     """ Prompt Gemini to generate a response based on the given prompt. """
-#     gemini_api_key = os.getenv('gemini_api_key')
-#     if not gemini_api_key:
-#         return JSONResponse(content={"error": "GEMINI_API_KEY not set"}, status_code=500)
-
-#     # Read the contents of tasks.py
-#     with open('tasks.py', 'r') as file:
-#         tasks_content = file.read()
-
-#     # Prepare the request data
-#     data = {
-#         "contents": [{
-#             "parts": [
-#                 {"text": f"Find the task function from here for the below prompt:\n{tasks_content}\n\nPrompt: {prompt}\n\n respond with the function_name and function_parameters with parameters in json format"},
-#             ]
-#         }]
-#     }
-
-#     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
-#     headers = {
-#         "Content-Type": "application/json"
-#     }
-
-#     response = requests.post(url, json=data, headers=headers)
-
-#     if response.status_code == 200:
-#         text_reponse = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-#         match = re.search(r'```json\n(.*?)\n```', text_reponse, re.DOTALL)
-#         text_reponse = match.group(1).strip() if match else text_reponse
-#         return json.loads(text_reponse)
-#         # return JSONResponse(content=response.json(), status_code=200)
-#     else:
-#         return JSONResponse(content={"error": "Failed to get response", "details": response.text}, status_code=response.status_code)
 
 @app.get("/ask")
 def ask(prompt: str):
@@ -276,14 +243,14 @@ function_definitions_llm = [
         }
     },
     {
-        "name": "B12",
+        "name": "B1",
         "description": "Check if filepath starts with /data",
         "parameters": {
             "type": "object",
             "properties": {
                 "filepath": {
                     "type": "string",
-                    "pattern": r"^/data/.*",
+                    "pattern": r".*",
                     # "description": "Filepath must start with /data to ensure secure access."
                 }
             },
@@ -296,7 +263,7 @@ function_definitions_llm = [
         "parameters": {
             "type": "object",
             "properties": {
-                "url": {
+                "api_url": {
                     "type": "string",
                     "pattern": r"https?://.*",
                     "description": "URL to download content from."
@@ -308,6 +275,56 @@ function_definitions_llm = [
                 }
             },
             "required": ["url", "save_path"]
+        }
+    },
+    {
+        "name": "B4",
+        "description": "Clone a Git repository, optionally modify files, commit changes, and push if needed.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "repo_url": {
+                    "type": "string",
+                    "pattern": "https?://.*",
+                    "description": "URL of the Git repository to clone."
+                },
+                "repo_path": {
+                    "type": "string",
+                    "pattern": ".*/.*",
+                    "description": "Path to clone the repository into. If not provided, defaults to /data/{repo_name}.",
+                    "default": None
+                },
+                "commit_message": {
+                    "type": "string",
+                    "description": "Commit message for the changes.",
+                    "default": "Updated files"
+                },
+                "file_changes": {
+                    "type": "array",
+                    "description": "List of files to modify before committing.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "Relative path of the file to modify."
+                            },
+                            "content": {
+                                "type": "string",
+                                "description": "New content to write into the file."
+                            }
+                        },
+                        "required": ["file_path", "content"]
+                    },
+                    "default": []
+                },
+                "push_changes": {
+                    "type": "boolean",
+                    "description": "Whether to push the commit to the remote repository.",
+                    "default": False
+                }
+            },
+            "required": ["repo_url"]
         }
     },
     {
@@ -336,75 +353,134 @@ function_definitions_llm = [
     },
     {
         "name": "B6",
-        "description": "Fetch content from a URL and save it to the specified output file.",
+        "description": "Scrape a website and extract data in different formats.",
         "parameters": {
             "type": "object",
             "properties": {
                 "url": {
                     "type": "string",
-                    "pattern": r"https?://.*",
-                    "description": "URL to fetch content from."
+                    "pattern": "https?://.*",
+                    "description": "URL of the website to scrape."
                 },
                 "output_filename": {
                     "type": "string",
-                    "pattern": r".*/.*",
-                    "description": "Path to the file where the content will be saved."
+                    "pattern": ".*/.*",
+                    "description": "Path to save the extracted content."
+                },
+                "extract_mode": {
+                    "type": "string",
+                    "enum": ["html", "text", "json", "element"],
+                    "description": "Extraction mode: 'html' (full page), 'text' (clean text), 'json' (if API), or 'element' (specific parts).",
+                    "default": "html"
+                },
+                "element_selector": {
+                    "type": "string",
+                    "description": "CSS selector to extract specific elements (required if extract_mode='element').",
+                    "nullable": True
+                },
+                "headers": {
+                    "type": "object",
+                    "description": "Optional request headers (e.g., User-Agent).",
+                    "nullable": True
                 }
             },
-            "required": ["url", "output_filename"]
+            "required": ["url", "output_filename", "extract_mode"]
         }
     },
     {
         "name": "B7",
-        "description": "Process an image by optionally resizing it and saving the result to an output path.",
+        "description": "Compress or resize an image while optionally changing its format.",
         "parameters": {
             "type": "object",
             "properties": {
                 "image_path": {
                     "type": "string",
-                    "pattern": r".*/(.*\.(jpg|jpeg|png|gif|bmp))",
                     "description": "Path to the input image file."
                 },
                 "output_path": {
                     "type": "string",
-                    "pattern": r".*/.*",
                     "description": "Path to save the processed image."
                 },
                 "resize": {
                     "type": "array",
                     "items": {
-                        "type": "integer",
-                        "minimum": 1
+                        "type": "integer"
                     },
                     "minItems": 2,
                     "maxItems": 2,
-                    "description": "Optional. Resize dimensions as [width, height]."
+                    "description": "Target size as [width, height] while maintaining aspect ratio."
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["JPEG", "PNG", "WEBP"],
+                    "description": "Optional format to convert the image to. Defaults to the input image format."
+                },
+                "quality": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Quality factor (for JPEG format only). Defaults to 85."
                 }
             },
             "required": ["image_path", "output_path"]
         }
     },
     {
+        "name": "B8",
+        "description": "Transcribe an audio file using the faster-whisper model.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "audio_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.mp3)",
+                    "description": "Path to the MP3 file to be transcribed."
+                },
+                "output_filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "description": "Path to the text file where the transcription will be saved."
+                },
+                "model_size": {
+                    "type": "string",
+                    "enum": ["tiny", "base", "small", "medium"],
+                    "description": "The size of the faster-whisper model to use. Defaults to 'small'."
+                },
+                "language": {
+                    "type": "string",
+                    "description": "Optional language code (e.g., 'en' for English). If not provided, auto-detection will be used."
+                }
+            },
+            "required": ["audio_path", "output_filename"]
+        }
+    },
+    {
         "name": "B9",
-        "description": "Convert a Markdown file to another format and save the result to the specified output path.",
+        "description": "Convert a Markdown file to HTML and save the result to the specified output path.",
         "parameters": {
             "type": "object",
             "properties": {
                 "md_path": {
                     "type": "string",
-                    "pattern": r".*/(.*\.md)",
+                    "pattern": ".*/(.*\\.md)",
                     "description": "Path to the Markdown file to be converted."
                 },
                 "output_path": {
                     "type": "string",
-                    "pattern": r".*/.*",
+                    "pattern": ".*/.*",
                     "description": "Path where the converted file will be saved."
+                },
+                "extensions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Optional list of Markdown extensions to enable, such as 'extra', 'codehilite', or 'toc'."
                 }
             },
             "required": ["md_path", "output_path"]
         }
     }
-
 ]
 
 def get_completions(prompt: str):
@@ -416,7 +492,7 @@ def get_completions(prompt: str):
                 {
                     "model": "gpt-4o-mini",
                     "messages": [
-                                    {"role": "system", "content": "You are a function classifier that extracts structured parameters from queries. The queries may be in any language."},
+                                    {"role": "system", "content": "You are a function classifier that extracts structured parameters from queries. The queries may be in any language. If in filepaths do not start with /data/, do not append /data/ at the beginning of filepaths by yourself. Send the exact path given only."},
                                     {"role": "user", "content": prompt}
                                 ],
                     "tools": [
@@ -428,7 +504,6 @@ def get_completions(prompt: str):
                     "tool_choice": "auto"
                 },
         )
-    # return response.json()
     print(response.json()["choices"][0]["message"]["tool_calls"][0]["function"])
     return response.json()["choices"][0]["message"]["tool_calls"][0]["function"]
 
@@ -467,21 +542,25 @@ async def run_task(task: str):
         if "A8"== task_code:
             A8(**json.loads(arguments))
         if "A9"== task_code:
-            A9(**json.loads(arguments))
+            await A9(**json.loads(arguments))
         if "A10"== task_code:
             A10(**json.loads(arguments))
 
 
-        if "B12"== task_code:
-            B12(**json.loads(arguments))
+        if "B1"== task_code:
+            B1(**json.loads(arguments))
         if "B3" == task_code:
             B3(**json.loads(arguments))
+        if "B4" == task_code:
+            B4(**json.loads(arguments))
         if "B5" == task_code:
             B5(**json.loads(arguments))
         if "B6" == task_code:
             B6(**json.loads(arguments))
         if "B7" == task_code:
             B7(**json.loads(arguments))
+        if "B8" == task_code:
+            B8(**json.loads(arguments))
         if "B9" == task_code:
             B9(**json.loads(arguments))
         return {"message": f"{task_code} Task '{task}' executed successfully"}

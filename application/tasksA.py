@@ -11,37 +11,12 @@ import shutil
 from scipy.spatial.distance import cosine
 from dotenv import load_dotenv
 import numpy as np
-
+from .tasksB import B1
 load_dotenv()
 
 AIPROXY_TOKEN = os.getenv('AIPROXY_TOKEN')
 
-'''
-def A1(email="22f3000819@ds.study.iitm.ac.in", script_url="https://raw.githubusercontent.com/sanand0/tools-in-data-science-public/tds-2025-01/project-1/datagen.py"):
-    print('Starting A1')
-    print(script_url)
-    print(email)
-    try:
-        print('trying to run uv script')
-        process = subprocess.Popen(
-            ["uv", "run", script_url, email],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        print('run uv script')
-        stdout, stderr = process.communicate()
-        if process.returncode != 0:
-            print('raising returncode')
-            raise HTTPException(status_code=500, detail=f"Error: {stderr}")
-    except subprocess.CalledProcessError as e:
-        print('process error')
-        raise HTTPException(status_code=500, detail=f"Error: {e.stderr}")
-    
-'''
 async def A1(email="22f3000819@ds.study.iitm.ac.in", script_url="https://raw.githubusercontent.com/sanand0/tools-in-data-science-public/tds-2025-01/project-1/datagen.py"):
-    print('Starting A1')
-    print(script_url)
-    print(email)
-
     try:
         # Check if `uv` is installed
         if not shutil.which("uv"):
@@ -73,7 +48,7 @@ async def A1(email="22f3000819@ds.study.iitm.ac.in", script_url="https://raw.git
         raise HTTPException(status_code=500, detail=str(e))
 # A1()
 async def A2(prettier_version="prettier@3.4.2", filename="/data/format.md"):
-    print('Started A2')
+    B1(filepath=filename)
     command = ["npx", "--yes", prettier_version, "--write", filename]
     try:
         subprocess.run(command, check=True)
@@ -86,7 +61,8 @@ def A3(filename='/data/dates.txt', targetfile='/data/dates-wednesdays.txt', week
     output_file = targetfile
     weekday = weekday
     weekday_count = 0
-
+    B1(filepath=input_file)
+    B1(filepath=targetfile)
     with open(input_file, 'r') as file:
         weekday_count = sum(1 for date in file if parse(date).weekday() == int(weekday)-1)
 
@@ -95,6 +71,8 @@ def A3(filename='/data/dates.txt', targetfile='/data/dates-wednesdays.txt', week
         file.write(str(weekday_count))
 
 def A4(filename="/data/contacts.json", targetfile="/data/contacts-sorted.json"):
+    B1(filepath=filename)
+    B1(filepath=targetfile)
     # Load the contacts from the JSON file
     with open(filename, 'r') as file:
         contacts = json.load(file)
@@ -107,6 +85,8 @@ def A4(filename="/data/contacts.json", targetfile="/data/contacts-sorted.json"):
         json.dump(sorted_contacts, file, indent=4)
 
 def A5(log_dir_path='/data/logs', output_file_path='/data/logs-recent.txt', num_files=10):
+    B1(filepath=log_dir_path)
+    B1(filepath=output_file_path)
     log_dir = Path(log_dir_path)
     output_file = Path(output_file_path)
 
@@ -121,6 +101,8 @@ def A5(log_dir_path='/data/logs', output_file_path='/data/logs-recent.txt', num_
                 f_out.write(f"{first_line}\n")
 
 def A6(doc_dir_path='/data/docs', output_file_path='/data/docs/index.json'):
+    B1(filepath=doc_dir_path)
+    B1(filepath=output_file_path)
     docs_dir = doc_dir_path
     output_file = output_file_path
     index_data = {}
@@ -147,6 +129,8 @@ def A6(doc_dir_path='/data/docs', output_file_path='/data/docs/index.json'):
         json.dump(index_data, f, indent=4)
 
 def A7(filename='/data/email.txt', output_file='/data/email-sender.txt'):
+    B1(filepath=filename)
+    B1(filepath=output_file)
     # Read the content of the email
     with open(filename, 'r') as file:
         email_content = file.readlines()
@@ -168,41 +152,14 @@ def png_to_base64(image_path):
     with open(image_path, "rb") as image_file:
         base64_string = base64.b64encode(image_file.read()).decode('utf-8')
     return base64_string
-# def A8():
-#     input_image = "data/credit_card.png"
-#     output_file = "data/credit-card.txt"
-
-#     # Step 1: Extract text using OCR
-#     try:
-#         image = Image.open(input_image)
-#         extracted_text = pytesseract.image_to_string(image)
-#         print(f"Extracted text:\n{extracted_text}")
-#     except Exception as e:
-#         print(f"❌ Error reading or processing {input_image}: {e}")
-#         return
-
-#     # Step 2: Pass the extracted text to the LLM to validate and extract card number
-#     prompt = f"""Extract the credit card number from the following text. Respond with only the card number, without spaces:
-
-#     {extracted_text}
-#     """
-#     try:
-#         card_number = ask_llm(prompt).strip()
-#         print(f"Card number extracted by LLM: {card_number}")
-#     except Exception as e:
-#         print(f"❌ Error processing with LLM: {e}")
-#         return
-
-#     # Step 3: Save the extracted card number to a text file
-#     try:
-#         with open(output_file, "w", encoding="utf-8") as file:
-#             file.write(card_number + "\n")
-#         print(f"✅ Credit card number saved to: {output_file}")
-#     except Exception as e:
-#         print(f"❌ Error writing {output_file}: {e}")
 
 def A8(filename='/data/credit_card.txt', image_path='/data/credit_card.png'):
+    print('checking filename')
+    B1(filepath=filename)
+    print('checking image path')
+    B1(filepath=image_path)
     # Construct the request body for the AIProxy call
+    print('creating body')
     body = {
         "model": "gpt-4o-mini",
         "messages": [
@@ -223,25 +180,25 @@ def A8(filename='/data/credit_card.txt', image_path='/data/credit_card.png'):
             }
         ]
     }
-
+    print('creating headers')
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {AIPROXY_TOKEN}"
     }
-
+    print('making request')
     # Make the request to the AIProxy service
     response = requests.post("http://aiproxy.sanand.workers.dev/openai/v1/chat/completions",
                              headers=headers, data=json.dumps(body))
-    # response.raise_for_status()
-
+    print(f'got response {response.status_code}')
     # Extract the credit card number from the response
     result = response.json()
     # print(result); return None
     card_number = result['choices'][0]['message']['content'].replace(" ", "")
-
+    print('writing to file')
     # Write the extracted card number to the output file
     with open(filename, 'w') as file:
         file.write(card_number)
+    print('written')
 # A8()
 
 def get_embeddings(texts):
@@ -255,10 +212,13 @@ def get_embeddings(texts):
         "input": texts  # Send all comments at once
     }
     response = requests.post("http://aiproxy.sanand.workers.dev/openai/v1/embeddings", headers=headers, data=json.dumps(data))
-    response.raise_for_status()
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=f"Embeddings API request failed with status {response.status_code}: {response.text}")
     return np.array([emb["embedding"] for emb in response.json()["data"]])
 
 async def A9(filename='/data/comments.txt', output_filename='/data/comments-similar.txt'):
+    B1(filepath=filename)
+    B1(filepath=output_filename)
     """Find the most similar pair of comments using embeddings."""
     print('Reading comments...')
     with open(filename, 'r') as f:
@@ -282,46 +242,10 @@ async def A9(filename='/data/comments.txt', output_filename='/data/comments-simi
         f.write(expected)
 
     print('Task completed.')
-'''
-def get_embedding(text):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {AIPROXY_TOKEN}"
-    }
-    data = {
-        "model": "text-embedding-3-small",
-        "input": [text]
-    }
-    response = requests.post("http://aiproxy.sanand.workers.dev/openai/v1/embeddings", headers=headers, data=json.dumps(data))
-    response.raise_for_status()
-    return response.json()["data"][0]["embedding"]
 
-def A9(filename='/data/comments.txt', output_filename='/data/comments-similar.txt'):
-    print('start reading comments')
-    # Read comments
-    with open(filename, 'r') as f:
-        comments = [line.strip() for line in f.readlines()]
-    print('read comments')
-    # Get embeddings for all comments
-    embeddings = [get_embedding(comment) for comment in comments]
-    print('Got embeddings')
-    # Find the most similar pair
-    min_distance = float('inf')
-    most_similar = (None, None)
-    print('msp')
-    for i in range(len(comments)):
-        for j in range(i + 1, len(comments)):
-            distance = cosine(embeddings[i], embeddings[j])
-            if distance < min_distance:
-                min_distance = distance
-                most_similar = (comments[i], comments[j])
-    print('done with loop')
-    # Write the most similar pair to file
-    with open(output_filename, 'w') as f:
-        f.write(most_similar[0] + '\n')
-        f.write(most_similar[1] + '\n')
-'''
 def A10(filename='/data/ticket-sales.db', output_filename='/data/ticket-sales-gold.txt', query="SELECT SUM(units * price) FROM tickets WHERE type = 'Gold'"):
+    B1(filepath=filename)
+    B1(filepath=output_filename)
     # Connect to the SQLite database
     conn = sqlite3.connect(filename)
     cursor = conn.cursor()
